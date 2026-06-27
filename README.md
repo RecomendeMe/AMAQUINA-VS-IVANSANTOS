@@ -4,165 +4,153 @@
 Quadro de pós-jogo: Ivan Santos × Inteligência Artificial
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange)](https://pytorch.org/)
-[![CUDA](https://img.shields.io/badge/NVIDIA-CUDA%2013-76b900)](https://developer.nvidia.com/cuda-toolkit)
-[![Powered by Nosana](https://img.shields.io/badge/Compute-Nosana-purple)](https://nosana.io/)
+[![Python](https://img.shields.io/badge/Python-3.11-blue)](https://python.org/)
+[![NumPy](https://img.shields.io/badge/NumPy-Monte%20Carlo-013243)](https://numpy.org/)
+[![Transfermarkt](https://img.shields.io/badge/Dados-Transfermarkt-1a6cfa)](https://transfermarkt.com/)
 
 ---
 
 ## O que é
 
-O **Placar da Máquina** é um quadro de análise preditiva exibido nos programas de pós-jogo da Copa do Mundo 2026 no canal **Cultura Eclética**, em parceria com a **RecomendeMe**. A cada rodada, um modelo treinado em GPU prevê os resultados das partidas e enfrenta os palpites do comentarista Ivan Santos. Quem acerta mais ao longo do torneio — o olho clínico ou a estatística?
+O **Placar da Máquina** é um quadro de análise preditiva exibido nos programas de pós-jogo da Copa do Mundo 2026 no canal **Cultura Eclética**, em parceria com a **RecomendeMe**. A cada rodada, um modelo prevê os resultados das partidas e enfrenta os palpites do comentarista Ivan Santos. Quem acerta mais ao longo do torneio — o olho clínico ou a estatística?
 
 ---
 
-## Infraestrutura de Compute
+## Histórico de versões
 
-| Componente | Especificação |
-|---|---|
-| **GPU** | NVIDIA GeForce RTX 3090 (24 GB VRAM, CUDA 13) |
-| **CPU** | AMD Ryzen 7 5800X 8-Core Processor |
-| **RAM** | ~32 GB (31995 MB) |
-| **Disco** | 705 GB |
-| **OS** | Linux |
-| **País do Node** | United Arab Emirates |
-| **Download / Upload** | 94 Mbps / 76 Mbps |
-| **Ping** | 6 ms |
-| **Plataforma** | [Nosana](https://nosana.io/) — compute descentralizado |
-| **Node ID** | `7dk2c92w2SeQahvcZs3ox9vtL9zuh4GC4mc8XHsgRrXh` |
-| **Deployer** | `9K2GJQdPnYbomydfYZZaADJXNe8zcWMHf7Y2b1khGV9z` |
-| **Ambiente** | Jupyter Notebook — container Kubernetes (`node.k8s.prd.nos.ci`) |
+### v1 — Dixon-Coles com embeddings neurais (Rodada 1)
+
+O modelo original treinava embeddings de ataque e defesa por seleção via produto escalar, estilo Dixon-Coles, sobre 15.871 partidas históricas desde 1872. Rodava em GPU (NVIDIA RTX 3090 via Nosana) com PyTorch.
+
+**Problema identificado:** o treinamento apresentou `loss: nan` desde a época 0 na execução de produção, resultando em lambdas inválidos. Além disso, o embedding histórico mistura gerações de jogadores e estilos de décadas distintas — a França de 1998 e a França de 2026 compartilham o escudo, não o elenco. O caso Cabo Verde (0–0 com Arábia Saudita) ilustrou o problema: seleções debutantes com pouuco histórico geram embeddings ruidosos independente do gradient clipping.
+
+**Resultado:** 3 acertos em 6 jogos — empatado com Ivan Santos (3/6).
+
+### v2 — Transfermarkt + Forma atual (Rodada 3 em diante) ✅ atual
+
+Arquitetura completamente reescrita. Sem PyTorch, sem GPU, sem histórico de 150 anos. O modelo passa a raciocinar como Ivan raciocina: **elenco atual + momento da Copa**.
 
 ---
 
-## Dataset
+## Arquitetura v2
 
-**"International Football Results from 1872 to 2024"**  
-Autor: [Mart Jürisoo](https://github.com/martj42/international_results)  
-Fonte: `https://raw.githubusercontent.com/martj42/international_results/master/results.csv`
+### Fonte de força
 
-| Atributo | Valor |
-|---|---|
-| Partidas carregadas (após limpeza) | **15.871** |
-| Seleções distintas no dataset | **312** |
-| Período coberto | 1872 — 2024 |
-| Licença | Open data |
+Dois componentes combinados com pesos configuráveis:
 
-**Colunas utilizadas:** `date`, `home_team`, `away_team`, `home_score`, `away_score`, `tournament`
-
-**Pré-processamento aplicado:**
-- Remoção de linhas com `home_score` ou `away_score` ausentes (`dropna`)
-- Remoção de partidas com placar negativo
-- Filtragem opcional por data mínima (configurável no script)
-
----
-
-## Arquitetura do Modelo
-
-### Modelo de Embeddings de Força (`ForcaSelecaoModel`)
-
-Cada seleção ganha dois vetores aprendidos de dimensão 8:
-
-- **`ataque[i]`** — vetor de força ofensiva da seleção `i`
-- **`defesa[j]`** — vetor de capacidade defensiva da seleção `j`
-
-O `λ` (taxa de gols esperados, parâmetro da distribuição de Poisson) de cada confronto é calculado como:
+**1. Valor de elenco (Transfermarkt)**  
+Valor de mercado total do elenco convocado, em milhões de euros. Data de referência: junho/2026.
 
 ```
-λ_mandante = exp( ataque[i] · defesa[j] )
-λ_visitante = exp( ataque[j] · defesa[i] )
+França     €1.520M    Inglaterra  €1.360M    Portugal    €1.010M
+Argentina    €807M    Croácia       €387M    Colômbia      €302M
+Argélia      €257M    Áustria       €245M    Gana          €234M
+RD Congo     €144M    Uzbequistão    €85M    Panamá         €34M
+Jordânia      €20M    ...
 ```
 
-O produto escalar entre o vetor de ataque de um time e o vetor de defesa do adversário captura a interação específica entre os dois estilos de jogo. O `exp()` garante que λ seja sempre positivo (requisito da Poisson).
+O valor é normalizado em escala logarítmica para suavizar diferenças extremas (Argentina 807M vs Jordânia 20M) sem apagar a hierarquia de qualidade.
 
-### Função de Perda
-
-**Poisson Negative Log-Likelihood (PoissonNLLLoss)**:
-
-```
-L = λ - k · log(λ)
-```
-
-Onde `k` é o número real de gols marcados. Esta é a função de perda correta para variáveis de contagem (gols), equivalente a maximizar a verossimilhança do modelo de Poisson sobre os dados observados. É estatisticamente mais adequada que erro quadrático médio (MSE) para esse tipo de dado.
-
-### Treinamento
-
-| Hiperparâmetro | Valor |
-|---|---|
-| Otimizador | Adam |
-| Learning rate | 0.005 |
-| Épocas | 300 |
-| Gradient clipping | `clip_grad_norm_` (norma máx. = 1.0) |
-| Dimensão do embedding | 8 |
-| Device | CUDA (RTX 3090) |
-
-**Convergência observada:**
-
-```
-Época   0 | Perda: 3.7213
-Época  50 | Perda: 3.3669
-Época 100 | Perda: 3.0949
-Época 150 | Perda: 3.0232
-Época 200 | Perda: 2.9940
-Época 250 | Perda: 2.9778
-✅ Treinamento concluído.
-```
-
----
-
-## Simulação Monte Carlo
-
-Após o treinamento, os λ aprendidos alimentam uma simulação de Monte Carlo de **10.000 iterações por jogo**:
+**2. Forma atual nesta Copa**  
+Calculada a partir dos dados da fase de grupos em andamento: gols marcados, gols sofridos, aproveitamento de pontos e fator de pressão contextual (quem precisa do resultado ataca mais).
 
 ```python
-gols_mandante = np.random.poisson(λ_mandante, 10_000)
-gols_visitante = np.random.poisson(λ_visitante, 10_000)
-
-prob_vitoria   = (gols_mandante > gols_visitante).mean() * 100
-prob_empate    = (gols_mandante == gols_visitante).mean() * 100
-prob_derrota   = (gols_mandante < gols_visitante).mean() * 100
+forca_forma = (
+    0.40 * ataque_medio +       # gols/jogo normalizado
+    0.35 * saldo_tanh +         # saldo gols via tanh
+    0.25 * aproveitamento       # pts / (jogos * 3)
+)
 ```
 
-O palpite final (placar) é o resultado mais frequente entre as 10.000 simulações. Os placares com maior frequência são exibidos no painel do programa.
+**Combinação final:**
+
+```
+forca = 0.6 * forca_elenco + 0.4 * forca_forma
+```
+
+### Cálculo de lambda
+
+```python
+lambda_mandante  = BASE_GOLS * (forca_m / (forca_m + forca_v)) * 2.0
+lambda_visitante = BASE_GOLS * (forca_v / (forca_m + forca_v)) * 2.0
+```
+
+Com `BASE_GOLS = 2.6` (média de gols/jogo em Copas recentes). Um fator de pressão de ±12% é aplicado quando há diferença de aproveitamento entre os times.
+
+### Simulação Monte Carlo
+
+```python
+gols_m = np.random.poisson(lambda_mandante,  50_000)
+gols_v = np.random.poisson(lambda_visitante, 50_000)
+
+prob_vitoria = (gols_m > gols_v).mean() * 100
+prob_empate  = (gols_m == gols_v).mean() * 100
+prob_derrota = (gols_m < gols_v).mean() * 100
+```
+
+50.000 iterações por jogo. Tempo de execução: < 1 segundo em CPU comum. **GPU não é necessária.**
 
 ---
 
-## Sistema de Blend (Histórico + Forma Atual)
+## Sistema Hedge (aprendizado adaptativo)
 
-O modelo puro reflete a força histórica geral de cada seleção ao longo de 150 anos. Para capturar também o momento atual na Copa 2026, aplicamos uma **média ponderada**:
+A partir da Rodada 2, Ivan e a Máquina operam como **especialistas competidores** dentro de um sistema de pesos multiplicativos (algoritmo Hedge / Multiplicative Weights):
 
+```python
+# quem errou perde peso; quem acertou mantém
+peso *= (1 - eta)   # erro
+peso *= (1 + eta * 0.3)  # acerto
+
+# normalizado para somar 1 ao final de cada rodada
 ```
-λ_final = α · λ_histórico + (1 - α) · λ_forma_atual
-```
 
-**Parâmetro padrão:** `α = 0.6` (60% histórico, 40% desempenho nesta Copa)
+**Parâmetro:** `eta = 0.25` (taxa de aprendizado suave — evita oscilação com poucos jogos).
 
-O `λ_forma_atual` é calculado a partir dos dados da fase de grupos (gols marcados/sofridos, aproveitamento de pontos, fator de pressão contextual — se a seleção precisa vencer para avançar).
+**Estado após Rodada 1:**
 
-Esta abordagem resolve um problema real identificado nos testes: seleções debutantes na Copa (ex: Cabo Verde) têm poucos dados históricos, o que distorce o embedding treinado. O blend reduz esse viés dando mais peso à performance recente.
+| Especialista | Peso | Acertos |
+|---|---|---|
+| Ivan Santos | **58.9%** | 3/6 |
+| A Máquina   | 41.1% | 3/6 |
+
+> O mesmo número de acertos gera pesos diferentes porque os jogos acertados/errados se sobrepõem de formas distintas ao longo das iterações. Ivan acertou Uruguai x Espanha (que a Máquina errou), o que pesou mais.
+
+O palpite combinado final é um voto ponderado pelos pesos correntes — se Ivan está com mais peso, o sistema confia mais nele automaticamente.
 
 ---
 
 ## Output
 
-O script gera um arquivo `palpites_maquina_blend.json` com a seguinte estrutura por jogo:
+O script gera `palpites_maquina_v2.json` com a seguinte estrutura:
 
 ```json
 {
-  "mandante": "Norway",
-  "visitante": "France",
-  "lambda_mandante": 1.12,
-  "lambda_visitante": 1.38,
-  "prob_mandante": 28.4,
-  "prob_empate": 31.2,
-  "prob_visitante": 40.4,
-  "palpite": "1x1",
-  "placares_frequentes": [
-    "1x1 → 14.3%",
-    "0x1 → 13.1%",
-    "1x2 → 10.8%"
-  ],
-  "modelo": "embeddings ataque/defesa treinados (PyTorch + GPU)"
+  "rodada": "3ª rodada — Fase de Grupos",
+  "data": "27-28/06/2026",
+  "modelo": "v2.0 — Transfermarkt + forma atual | sem histórico | Monte Carlo Poisson",
+  "pesos_hedge": {
+    "Máquina": 0.411,
+    "Ivan": 0.589
+  },
+  "jogos": [
+    {
+      "mandante": "Panama",
+      "visitante": "England",
+      "forca_mandante": 0.159,
+      "forca_visitante": 0.919,
+      "lambda": { "mandante": 0.86, "visitante": 4.17 },
+      "prob_vitoria_mandante": 3.2,
+      "prob_empate": 6.1,
+      "prob_vitoria_visitante": 90.7,
+      "palpite_wdl": "Vitória England",
+      "palpite_placar": "0x4",
+      "placares_frequentes": [
+        { "placar": "0x4", "freq_pct": 8.2 },
+        { "placar": "0x3", "freq_pct": 7.8 },
+        { "placar": "1x4", "freq_pct": 7.3 }
+      ]
+    }
+  ]
 }
 ```
 
@@ -172,11 +160,11 @@ O script gera um arquivo `palpites_maquina_blend.json` com a seguinte estrutura 
 
 ```
 placar-da-maquina/
-├── treino_forca_selecoes.py   # Script principal (treinamento + simulação)
-├── placar_da_maquina.html     # Página web com SEO para RecomendeMe
-├── palpites_maquina.json      # Output do modelo puro
-├── palpites_maquina_blend.json # Output do modelo com blend
-├── results.csv                # Dataset (baixado automaticamente via urllib)
+├── simulacao_maquina_v2.py       # Script principal v2 (atual)
+├── treino_forca_selecoes.py      # Script v1 — Dixon-Coles + GPU (legado)
+├── placar_da_maquina.html        # Página web (RecomendeMe) — consome o JSON
+├── palpites_maquina_v2.json      # Output v2 (rodada atual)
+├── palpites_maquina_blend.json   # Output v1 — fallback legado
 └── README.md
 ```
 
@@ -187,41 +175,33 @@ placar-da-maquina/
 ### Requisitos
 
 ```bash
-pip install torch pandas numpy
+pip install numpy
 ```
 
-> PyTorch com suporte CUDA recomendado. O script detecta automaticamente via `torch.cuda.is_available()` e usa CPU como fallback.
+Sem PyTorch. Sem CUDA. Sem dependências pesadas.
 
 ### Execução
 
 ```bash
-# O script baixa o dataset automaticamente (urllib, sem precisar do Kaggle)
-python treino_forca_selecoes.py
+python simulacao_maquina_v2.py
 ```
 
-Ou abra `treino_forca_selecoes.py` no Jupyter Notebook e execute célula por célula.
+### Atualizar para nova rodada
 
-### Células do Notebook
-
-| Célula | Função |
-|---|---|
-| 1 | Imports e detecção de device (CUDA/CPU) |
-| 2 | Download e limpeza do dataset |
-| 3 | Indexação das seleções |
-| 4 | Definição do modelo (`ForcaSelecaoModel`) |
-| 5 | Treinamento (Adam + gradient clipping) |
-| 6 | Função `prever_jogo()` — modelo histórico puro |
-| 7 | Loop pelos jogos da rodada + export JSON |
-| 8 | Função `prever_jogo_blend()` — blend histórico + forma atual |
+1. Edite `FORMA_ATUAL` com gols/pontos atualizados de cada seleção
+2. Edite `JOGOS` com os confrontos da nova rodada
+3. Adicione um bloco `HISTORICO_RODADA_N` com resultados reais + palpites do Ivan
+4. Execute — os pesos Hedge se atualizam automaticamente
+5. Suba o `palpites_maquina_v2.json` gerado na mesma pasta do HTML
 
 ---
 
-## Limitações Conhecidas
+## Limitações conhecidas
 
-- O modelo não incorpora dados de lesões/suspensões em tempo real
-- Seleções com poucos jogos históricos (ex: debutantes na Copa) geram embeddings menos confiáveis — mitigado pelo blend com `α` ajustável
-- O λ captura força geral, não contexto tático específico (formação, estilo de pressão)
-- A loss ainda convergia lentamente nas 300 épocas — ampliar para 800–1000 épocas melhora a calibração sem custo de tempo relevante na RTX 3090
+- Valor de mercado (Transfermarkt) tem viés de liga: jogadores de Premier League e La Liga tendem a ser supervalorizados relativamente a ligas menores, o que pode reproduzir o efeito Cabo Verde em direção inversa.
+- O dado de elenco tem defasagem temporal — não reflete lesões ou suspensões de última hora. Um campo `ajuste_desfalque` manual está disponível no dataclass `Forma` para correção pontual.
+- Com poucos jogos por Copa, os pesos Hedge oscilam mais do que em amostras maiores. A taxa `eta = 0.25` foi escolhida para suavizar isso.
+- O modelo não captura contexto tático (formação, estilo de pressão, histórico de confronto direto).
 
 ---
 
@@ -231,8 +211,9 @@ Ou abra `treino_forca_selecoes.py` no Jupyter Notebook e execute célula por cé
 |---|---|
 | [RecomendeMe](https://recomendeme.com.br) | Desenvolvimento do modelo e infraestrutura técnica |
 | [Cultura Eclética](https://youtube.com/@culturaecletica) | Apresentação — Ivan Santos |
-| [Nosana](https://nosana.io/) | Compute descentralizado (GPU NVIDIA RTX 3090) |
-| [Mart Jürisoo](https://github.com/martj42/international_results) | Dataset histórico de futebol internacional |
+| [Transfermarkt](https://transfermarkt.com/) | Dados de valor de elenco (jun/2026) |
+| [Mart Jürisoo](https://github.com/martj42/international_results) | Dataset histórico v1 |
+| [Nosana](https://nosana.io/) | Compute descentralizado v1 (GPU NVIDIA RTX 3090) |
 
 ---
 
@@ -242,4 +223,4 @@ MIT License — open source, livre para uso e modificação com atribuição.
 
 ---
 
-*Powered by NVIDIA RTX 3090 · PyTorch · Nosana Compute · Open Data*
+*v2.0 · Monte Carlo Poisson · Transfermarkt · CPU · < 1s por rodada*
