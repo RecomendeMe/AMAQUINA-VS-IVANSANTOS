@@ -1,0 +1,197 @@
+{
+  "rodada": "3ª rodada — Fase de Grupos",
+  "data": "27-28/06/2026",
+  "modelo": "v2.0 — Transfermarkt + forma atual | sem histórico | Monte Carlo Poisson",
+  "pesos_hedge": {
+    "Máquina": 0.411,
+    "Ivan": 0.589
+  },
+  "jogos": [
+    {
+      "mandante": "Panama",
+      "visitante": "England",
+      "forca_mandante": 0.159,
+      "forca_visitante": 0.919,
+      "lambda": {
+        "mandante": 0.86,
+        "visitante": 4.166
+      },
+      "prob_vitoria_mandante": 3.2,
+      "prob_empate": 6.1,
+      "prob_vitoria_visitante": 90.7,
+      "palpite_wdl": "Vitória England",
+      "palpite_placar": "0x4",
+      "placares_frequentes": [
+        {
+          "placar": "0x4",
+          "freq_pct": 8.2
+        },
+        {
+          "placar": "0x3",
+          "freq_pct": 7.8
+        },
+        {
+          "placar": "1x4",
+          "freq_pct": 7.3
+        }
+      ],
+      "horario": "18:00",
+      "grupo": "J"
+    },
+    {
+      "mandante": "Croatia",
+      "visitante": "Ghana",
+      "forca_mandante": 0.597,
+      "forca_visitante": 0.598,
+      "lambda": {
+        "mandante": 2.909,
+        "visitante": 2.447
+      },
+      "prob_vitoria_mandante": 49.0,
+      "prob_empate": 17.2,
+      "prob_vitoria_visitante": 33.7,
+      "palpite_wdl": "Vitória Croatia",
+      "palpite_placar": "3x2",
+      "placares_frequentes": [
+        {
+          "placar": "3x2",
+          "freq_pct": 5.9
+        },
+        {
+          "placar": "2x2",
+          "freq_pct": 5.9
+        },
+        {
+          "placar": "2x1",
+          "freq_pct": 5.0
+        }
+      ],
+      "horario": "18:00",
+      "grupo": "J"
+    },
+    {
+      "mandante": "Colombia",
+      "visitante": "Portugal",
+      "forca_mandante": 0.664,
+      "forca_visitante": 0.867,
+      "lambda": {
+        "mandante": 2.12,
+        "visitante": 3.298
+      },
+      "prob_vitoria_mandante": 23.1,
+      "prob_empate": 15.6,
+      "prob_vitoria_visitante": 61.3,
+      "palpite_wdl": "Vitória Portugal",
+      "palpite_placar": "2x3",
+      "placares_frequentes": [
+        {
+          "placar": "2x3",
+          "freq_pct": 5.9
+        },
+        {
+          "placar": "1x3",
+          "freq_pct": 5.5
+        },
+        {
+          "placar": "2x2",
+          "freq_pct": 5.3
+        }
+      ],
+      "horario": "20:30",
+      "grupo": "K"
+    },
+    {
+      "mandante": "DR Congo",
+      "visitante": "Uzbekistan",
+      "forca_mandante": 0.373,
+      "forca_visitante": 0.208,
+      "lambda": {
+        "mandante": 3.135,
+        "visitante": 2.088
+      },
+      "prob_vitoria_mandante": 59.4,
+      "prob_empate": 16.3,
+      "prob_vitoria_visitante": 24.3,
+      "palpite_wdl": "Vitória DR Congo",
+      "palpite_placar": "3x2",
+      "placares_frequentes": [
+        {
+          "placar": "3x2",
+          "freq_pct": 6.1
+        },
+        {
+          "placar": "3x1",
+          "freq_pct": 5.8
+        },
+        {
+          "placar": "2x2",
+          "freq_pct": 5.7
+        }
+      ],
+      "horario": "20:30",
+      "grupo": "K"
+    },
+    {
+      "mandante": "Jordan",
+      "visitante": "Argentina",
+      "forca_mandante": 0.032,
+      "forca_visitante": 0.869,
+      "lambda": {
+        "mandante": 0.209,
+        "visitante": 4.712
+      },
+      "prob_vitoria_mandante": 0.3,
+      "prob_empate": 1.6,
+      "prob_vitoria_visitante": 98.1,
+      "palpite_wdl": "Vitória Argentina",
+      "palpite_placar": "0x4",
+      "placares_frequentes": [
+        {
+          "placar": "0x4",
+          "freq_pct": 14.6
+        },
+        {
+          "placar": "0x5",
+          "freq_pct": 14.2
+        },
+        {
+          "placar": "0x3",
+          "freq_pct": 12.6
+        }
+      ],
+      "horario": "23:00",
+      "grupo": "L"
+    },
+    {
+      "mandante": "Algeria",
+      "visitante": "Austria",
+      "forca_mandante": 0.5,
+      "forca_visitante": 0.547,
+      "lambda": {
+        "mandante": 2.484,
+        "visitante": 2.716
+      },
+      "prob_vitoria_mandante": 36.9,
+      "prob_empate": 17.8,
+      "prob_vitoria_visitante": 45.3,
+      "palpite_wdl": "Vitória Austria",
+      "palpite_placar": "2x2",
+      "placares_frequentes": [
+        {
+          "placar": "2x2",
+          "freq_pct": 6.5
+        },
+        {
+          "placar": "2x3",
+          "freq_pct": 5.7
+        },
+        {
+          "placar": "1x2",
+          "freq_pct": 5.2
+        }
+      ],
+      "horario": "23:00",
+      "grupo": "L"
+    }
+  ]
+}
