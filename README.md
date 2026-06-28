@@ -1,4 +1,4 @@
-# 🤖⚽ Placar da Máquina — Copa do Mundo 2026
+# 🤖⚽ IVAN VS A MÁQUINA — Copa do Mundo 2026: Powered By Nvidia
 
 **Cultura Eclética × RecomendeMe**  
 Quadro de pós-jogo: Ivan Santos × Inteligência Artificial
